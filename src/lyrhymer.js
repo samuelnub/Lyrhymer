@@ -5,7 +5,7 @@ var secrets = require("./superSecretConfidentialStuff");
 (function () {
     console.log(secrets.info);
 
-    var interval = 1000 * 60 * 60 * 6;
+    var interval = 1000 * 60* 60 * 1;
     var redoWait = 1000 * 10;
 
     var twit = new twitter({
@@ -28,7 +28,7 @@ var secrets = require("./superSecretConfidentialStuff");
                 path: mxmPathVer + "chart.tracks.get?" +
                 "apikey=" + secrets.mxmApiKey + "&" +
                 "page=" + 1 + "&" +
-                "page_size=" + 50 + "&" +
+                "page_size=" + 100 + "&" +
                 "f_has_lyrics=" + 1 // TODO: magic strings
             }, function getTopCharts(res) {
                 var chartBody = "";
@@ -37,7 +37,7 @@ var secrets = require("./superSecretConfidentialStuff");
                 });
 
                 res.on("error", function (err) {
-                    console.error("error getting charts!");
+                    console.log("error getting charts!");
                     setTimeout(commence, redoWait);
                     return;
                 });
@@ -49,7 +49,14 @@ var secrets = require("./superSecretConfidentialStuff");
                         chartParsed = JSON.parse(chartBody);
                     }
                     catch (err) {
-                        console.error("Couldn't parse chart");
+                        console.log("Couldn't parse chart");
+                        setTimeout(commence, redoWait);
+                        return;
+                    }
+
+                    if(chartParsed.message.header.status_code !== 200) {
+                        console.log("Status code for chart response isn't lookin good!");
+                        console.log(chartParsed);
                         setTimeout(commence, redoWait);
                         return;
                     }
@@ -69,7 +76,7 @@ var secrets = require("./superSecretConfidentialStuff");
                         });
 
                         res.on("error", function (err) {
-                            console.error("error getting charts!");
+                            console.log("error getting charts!");
                             setTimeout(commence, redoWait);
                             return;
                         });
@@ -81,7 +88,14 @@ var secrets = require("./superSecretConfidentialStuff");
                                 snippetParsed = JSON.parse(snippetBody);
                             }
                             catch (err) {
-                                console.error("couldn't parse snippet");
+                                console.log("couldn't parse snippet");
+                                setTimeout(commence, redoWait);
+                                return;
+                            }
+                            
+                            if(snippetParsed.message.header.status_code !== 200) {
+                                console.log("Status code for snippet response isn't lookin good!");
+                                console.log(snippetParsed);
                                 setTimeout(commence, redoWait);
                                 return;
                             }
@@ -105,7 +119,7 @@ var secrets = require("./superSecretConfidentialStuff");
                                 });
 
                                 res.on("error", function (err) {
-                                    console.error("error getting suggested words!");
+                                    console.log("error getting suggested words!");
                                     setTimeout(commence, redoWait);
                                     return;
                                 });
@@ -117,7 +131,7 @@ var secrets = require("./superSecretConfidentialStuff");
                                         sugsParsed = JSON.parse(sugsBody);
                                     }
                                     catch (err) {
-                                        console.error("couldn't parse suggestion");
+                                        console.log("couldn't parse suggestion");
                                         setTimeout(commence, redoWait);
                                         return;
                                     }
@@ -141,7 +155,7 @@ var secrets = require("./superSecretConfidentialStuff");
                                         });
 
                                         res.on("error", function (err) {
-                                            console.error("error getting rhymes!");
+                                            console.log("error getting rhymes!");
                                             setTimeout(commence, redoWait);
                                             return;
                                         });
@@ -153,7 +167,7 @@ var secrets = require("./superSecretConfidentialStuff");
                                                 rhymesParsed = JSON.parse(rhymesBody);
                                             }
                                             catch (err) {
-                                                console.error("couldn't parse rhyme");
+                                                console.log("couldn't parse rhyme");
                                                 setTimeout(commence, redoWait);
                                                 return;
                                             }
