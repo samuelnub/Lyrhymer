@@ -5,8 +5,8 @@ var secrets = require("./superSecretConfidentialStuff");
 (function () {
     console.log(secrets.info);
 
-    var interval = 1000 * 60 * 60 * 6; // 6 hours
-    var redoWait = 1000 * 2;
+    var interval = 1000 * 60 * 60 * 6;
+    var redoWait = 1000 * 10;
 
     var twit = new twitter({
         consumer_key: secrets.twitConKey,
@@ -18,7 +18,7 @@ var secrets = require("./superSecretConfidentialStuff");
 
     // Prepare for callback hell!
     (function commence() {
-        setInterval((function () {
+        try {
             var mxmHost = "api.musixmatch.com";
             var mxmPathVer = "/ws/1.1/";
 
@@ -28,7 +28,7 @@ var secrets = require("./superSecretConfidentialStuff");
                 path: mxmPathVer + "chart.tracks.get?" +
                 "apikey=" + secrets.mxmApiKey + "&" +
                 "page=" + 1 + "&" +
-                "page_size=" + 10 + "&" +
+                "page_size=" + 50 + "&" +
                 "f_has_lyrics=" + 1 // TODO: magic strings
             }, function getTopCharts(res) {
                 var chartBody = "";
@@ -37,8 +37,7 @@ var secrets = require("./superSecretConfidentialStuff");
                 });
 
                 res.on("error", function (err) {
-                    console.log("error getting charts!");
-                    console.log(err);
+                    console.error("error getting charts!");
                     setTimeout(commence, redoWait);
                     return;
                 });
@@ -134,7 +133,7 @@ var secrets = require("./superSecretConfidentialStuff");
                                     // Get a random rhyme pertaining to that suggested word
                                     http.get({
                                         host: wordHost,
-                                        path: "/words?rel_rhy=" + bestSugWord
+                                        path: "/words?rel_rhy=" + bestSugWord.split(" ").join("%20")
                                     }, function getRhyme(res) {
                                         var rhymesBody = "";
                                         res.on("data", function (d) {
@@ -159,7 +158,6 @@ var secrets = require("./superSecretConfidentialStuff");
                                                 return;
                                             }
 
-                                            console.log(snippetParsed.message.body.snippet.snippet_body);
                                             var rhyme = rhymesParsed[Object.keys(rhymesParsed).length * Math.random() << 0];
                                             if (!rhyme) {
                                                 console.log("there wasn't any suitable rhyme for the snippet word: " + snippetLastWord);
@@ -167,27 +165,62 @@ var secrets = require("./superSecretConfidentialStuff");
                                                 return;
                                             }
                                             var rhymeWord = rhyme.word;
-                                            console.log(rhymeWord);
 
                                             // We're done with all the requests! time to post stuff
                                             // regex accented characters http://stackoverflow.com/questions/20690499/concrete-javascript-regex-for-accented-characters-diacritics
                                             var artistHash = "#" + track.artist_name.split(/[^a-z|A-Z|0-9|A-zÀ-ÿ]/).join("");
-                                            
+
                                             var finalMessage = [
                                                 snippetString.substring(0, snippetLastSpaceIndex),
+                                                " ",
                                                 rhymeWord,
+                                                " ",
                                                 artistHash
-                                            ].join(" ");
-                                            console.log(finalMessage);
-                                            console.log(track.track_name);
-                                            if(finalMessage.length >= 140) {
+                                            ].join("");
+                                            if (finalMessage.length >= 140) {
                                                 console.log("Our final message was too long :( let's redo");
                                                 setTimeout(commence, redoWait);
-                                                return;
+                                                return; // TODO: for some reason, node doesn't wait for the setTimeout to execute, but just exits (for this case in particular, strange)
                                             }
 
-                                            twit.post("statuses/update", {status: finalMessage}, function(err, data, response) {
-                                                console.log(data);
+                                            twit.post("statuses/update", { status: finalMessage }, function (err, data, response) {
+                                                if (data.errors) {
+                                                    console.log("Couldn't post tweet!");
+                                                    console.log(data.errors);
+                                                    setTimeout(commence, redoWait);
+                                                    return;
+                                                }
+
+                                                var thisStatusIDstr = data.id_str;
+                                                var ourHandle = data.user.screen_name;
+
+                                                var replyMessage = [
+                                                    "@",
+                                                    ourHandle,
+                                                    " ",
+                                                    "Original line: \"",
+                                                    snippetString,
+                                                    "\" ",
+                                                    "Track title: ",
+                                                    track.track_name,
+                                                    ", lol"
+                                                ].join("");
+                                                if (replyMessage.length >= 140) {
+                                                    console.log("Reply message was too long, oh well :(");
+                                                    return;
+                                                }
+
+                                                twit.post("statuses/update", { in_reply_to_status_id: thisStatusIDstr, status: replyMessage }, function (err, data, response) {
+                                                    if (data.errors) {
+                                                        console.log("Couldn't make reply!");
+                                                        console.log(data.errors);
+                                                        setTimeout(commence, redoWait);
+                                                        return;
+                                                    }
+                                                    console.log("Made a new tweet!");
+                                                    setTimeout(commence, interval);
+                                                    return;
+                                                });
                                             });
                                         });
                                     });
@@ -197,6 +230,11 @@ var secrets = require("./superSecretConfidentialStuff");
                     });
                 });
             });
-        })(), interval);
+        }
+        catch (err) {
+            console.log("Caught a pesky exception:");
+            console.log(err);
+            setTimeout(commence, redoWait);
+        }
     })();
 })();
