@@ -5,8 +5,10 @@ var secrets = require("./superSecretConfidentialStuff");
 (function () {
     console.log(secrets.info);
 
-    var interval = 1000 * 60* 60 * 1;
-    var redoWait = 1000 * 10;
+    var curCount = 0;
+    var interval = 1000 * 60* 60 * 0.5;
+    var redoWait = 1000 * 20;
+    var tweetCharLimit = 140;
 
     var twit = new twitter({
         consumer_key: secrets.twitConKey,
@@ -17,7 +19,8 @@ var secrets = require("./superSecretConfidentialStuff");
     });
 
     // Prepare for callback hell!
-    (function commence() {
+    commence(false);
+    function commence(once) {
         try {
             var mxmHost = "api.musixmatch.com";
             var mxmPathVer = "/ws/1.1/";
@@ -38,7 +41,7 @@ var secrets = require("./superSecretConfidentialStuff");
 
                 res.on("error", function (err) {
                     console.log("error getting charts!");
-                    setTimeout(commence, redoWait);
+                    if (!once) { setTimeout(commence, redoWait); }
                     return;
                 });
 
@@ -50,14 +53,14 @@ var secrets = require("./superSecretConfidentialStuff");
                     }
                     catch (err) {
                         console.log("Couldn't parse chart");
-                        setTimeout(commence, redoWait);
+                        if (!once) { setTimeout(commence, redoWait); }
                         return;
                     }
 
-                    if(chartParsed.message.header.status_code !== 200) {
+                    if (chartParsed.message.header.status_code !== 200) {
                         console.log("Status code for chart response isn't lookin good!");
                         console.log(chartParsed);
-                        setTimeout(commence, redoWait);
+                        if (!once) { setTimeout(commence, redoWait); }
                         return;
                     }
 
@@ -77,7 +80,7 @@ var secrets = require("./superSecretConfidentialStuff");
 
                         res.on("error", function (err) {
                             console.log("error getting charts!");
-                            setTimeout(commence, redoWait);
+                            if (!once) { setTimeout(commence, redoWait); }
                             return;
                         });
 
@@ -89,14 +92,14 @@ var secrets = require("./superSecretConfidentialStuff");
                             }
                             catch (err) {
                                 console.log("couldn't parse snippet");
-                                setTimeout(commence, redoWait);
+                                if (!once) { setTimeout(commence, redoWait); }
                                 return;
                             }
-                            
-                            if(snippetParsed.message.header.status_code !== 200) {
+
+                            if (snippetParsed.message.header.status_code !== 200) {
                                 console.log("Status code for snippet response isn't lookin good!");
                                 console.log(snippetParsed);
-                                setTimeout(commence, redoWait);
+                                if (!once) { setTimeout(commence, redoWait); }
                                 return;
                             }
 
@@ -111,7 +114,7 @@ var secrets = require("./superSecretConfidentialStuff");
                             // Get the suggested word of it^, if its a real word, the first index will return the same word (good!), if the word doesnt exist, eg starboy, it will return something like starboard, which still works! better than nothing
                             http.get({
                                 host: wordHost,
-                                path: "/sug?s=" + snippetLastWord
+                                path: "/sug?s=" + snippetLastWord.split(/[^a-z|A-Z|A-zÀ-ÿ]/).join("")
                             }, function getSuggested(res) {
                                 var sugsBody = "";
                                 res.on("data", function (d) {
@@ -120,7 +123,7 @@ var secrets = require("./superSecretConfidentialStuff");
 
                                 res.on("error", function (err) {
                                     console.log("error getting suggested words!");
-                                    setTimeout(commence, redoWait);
+                                    if (!once) { setTimeout(commence, redoWait); }
                                     return;
                                 });
 
@@ -132,14 +135,14 @@ var secrets = require("./superSecretConfidentialStuff");
                                     }
                                     catch (err) {
                                         console.log("couldn't parse suggestion");
-                                        setTimeout(commence, redoWait);
+                                        if (!once) { setTimeout(commence, redoWait); }
                                         return;
                                     }
 
                                     var bestSug = sugsParsed[0];
                                     if (!bestSug) {
-                                        console.log("no suggested words for: " + snippetLastWord + ", likely because it has non-alphabetic characters!");
-                                        setTimeout(commence, redoWait);
+                                        console.log("no suggested words for: " + snippetLastWord);
+                                        if (!once) { setTimeout(commence, redoWait); }
                                         return;
                                     }
                                     var bestSugWord = bestSug.word;
@@ -156,7 +159,7 @@ var secrets = require("./superSecretConfidentialStuff");
 
                                         res.on("error", function (err) {
                                             console.log("error getting rhymes!");
-                                            setTimeout(commence, redoWait);
+                                            if (!once) { setTimeout(commence, redoWait); }
                                             return;
                                         });
 
@@ -168,14 +171,14 @@ var secrets = require("./superSecretConfidentialStuff");
                                             }
                                             catch (err) {
                                                 console.log("couldn't parse rhyme");
-                                                setTimeout(commence, redoWait);
+                                                if (!once) { setTimeout(commence, redoWait); }
                                                 return;
                                             }
 
                                             var rhyme = rhymesParsed[Object.keys(rhymesParsed).length * Math.random() << 0];
                                             if (!rhyme) {
                                                 console.log("there wasn't any suitable rhyme for the snippet word: " + snippetLastWord);
-                                                setTimeout(commence, redoWait);
+                                                if (!once) { setTimeout(commence, redoWait); }
                                                 return;
                                             }
                                             var rhymeWord = rhyme.word;
@@ -191,51 +194,52 @@ var secrets = require("./superSecretConfidentialStuff");
                                                 " ",
                                                 artistHash
                                             ].join("");
-                                            if (finalMessage.length >= 140) {
+                                            if (finalMessage.length >= tweetCharLimit) {
                                                 console.log("Our final message was too long :( let's redo");
-                                                setTimeout(commence, redoWait);
-                                                return; // TODO: for some reason, node doesn't wait for the setTimeout to execute, but just exits (for this case in particular, strange)
+                                                if (!once) { setTimeout(commence, redoWait); }
+                                                return;
                                             }
-
-                                            twit.post("statuses/update", { status: finalMessage }, function (err, data, response) {
-                                                if (data.errors) {
-                                                    console.log("Couldn't post tweet!");
-                                                    console.log(data.errors);
-                                                    setTimeout(commence, redoWait);
-                                                    return;
-                                                }
-
-                                                var thisStatusIDstr = data.id_str;
-                                                var ourHandle = data.user.screen_name;
-
-                                                var replyMessage = [
-                                                    "@",
-                                                    ourHandle,
-                                                    " ",
-                                                    "Original line: \"",
-                                                    snippetString,
-                                                    "\" ",
-                                                    "Track title: ",
-                                                    track.track_name,
-                                                    ", lol"
-                                                ].join("");
-                                                if (replyMessage.length >= 140) {
-                                                    console.log("Reply message was too long, oh well :(");
-                                                    return;
-                                                }
-
-                                                twit.post("statuses/update", { in_reply_to_status_id: thisStatusIDstr, status: replyMessage }, function (err, data, response) {
+                                            else {
+                                                twit.post("statuses/update", { status: finalMessage }, function (err, data, response) {
                                                     if (data.errors) {
-                                                        console.log("Couldn't make reply!");
+                                                        console.log("Couldn't post tweet!");
                                                         console.log(data.errors);
-                                                        setTimeout(commence, redoWait);
+                                                        if (!once) { setTimeout(commence, redoWait); }
                                                         return;
                                                     }
-                                                    console.log("Made a new tweet!");
-                                                    setTimeout(commence, interval);
-                                                    return;
+
+                                                    var thisStatusIDstr = data.id_str;
+                                                    var ourHandle = data.user.screen_name;
+
+                                                    var replyMessage = [
+                                                        "@",
+                                                        ourHandle,
+                                                        " ",
+                                                        "Original line: \"",
+                                                        snippetString,
+                                                        "\" ",
+                                                        "Track title: ",
+                                                        track.track_name,
+                                                        ", lol"
+                                                    ].join("");
+                                                    if (replyMessage.length >= tweetCharLimit) {
+                                                        console.log("Reply message was too long, oh well :(");
+                                                        return;
+                                                    }
+
+                                                    twit.post("statuses/update", { in_reply_to_status_id: thisStatusIDstr, status: replyMessage }, function (err, data, response) {
+                                                        if (data.errors) {
+                                                            console.log("Couldn't make reply!");
+                                                            console.log(data.errors);
+                                                            if (!once) { setTimeout(commence, redoWait); }
+                                                            return;
+                                                        }
+                                                        console.log("Made Tweet number " + ++curCount + " this run!\n");
+                                                        if (!once) { setTimeout(commence, interval); }
+                                                        return;
+                                                    });
                                                 });
-                                            });
+                                            }
                                         });
                                     });
                                 });
@@ -248,7 +252,7 @@ var secrets = require("./superSecretConfidentialStuff");
         catch (err) {
             console.log("Caught a pesky exception:");
             console.log(err);
-            setTimeout(commence, redoWait);
+            if (!once) { setTimeout(commence, redoWait); }
         }
-    })();
+    }
 })();
