@@ -3,9 +3,9 @@ var twitter = require("twit");
 var secrets = require("./superSecretConfidentialStuff");
 
 (function () {
-    console.log(secrets.test);
+    console.log(secrets.info);
 
-    var interval = 1000 * 60 * 60 * 12; // 12 hours
+    var interval = 1000 * 60 * 60 * 6; // 6 hours
     var redoWait = 1000 * 2;
 
     var twit = new twitter({
@@ -16,7 +16,7 @@ var secrets = require("./superSecretConfidentialStuff");
         timeout_ms: 1000 * 60
     });
 
-    // prepare for callback hell!
+    // Prepare for callback hell!
     (function commence() {
         setInterval((function () {
             var mxmHost = "api.musixmatch.com";
@@ -70,8 +70,7 @@ var secrets = require("./superSecretConfidentialStuff");
                         });
 
                         res.on("error", function (err) {
-                            console.log("error getting charts!");
-                            console.log(err);
+                            console.error("error getting charts!");
                             setTimeout(commence, redoWait);
                             return;
                         });
@@ -90,44 +89,108 @@ var secrets = require("./superSecretConfidentialStuff");
 
                             // We've now got a snippet result, lets get the last word and dump that into a rhymer-finder
                             // getting last word http://stackoverflow.com/questions/20883404/javascript-returning-the-last-word-in-a-string
-                            var snippetLastWord = snippetParsed.message.body.snippet.snippet_body.slice(snippetParsed.message.body.snippet.snippet_body.lastIndexOf(" ") + 1);
+                            var snippetLastSpaceIndex = snippetParsed.message.body.snippet.snippet_body.lastIndexOf(" ");
+                            var snippetString = snippetParsed.message.body.snippet.snippet_body;
+                            var snippetLastWord = snippetString.slice(snippetLastSpaceIndex + 1);
+
+                            var wordHost = "api.datamuse.com";
+
+                            // Get the suggested word of it^, if its a real word, the first index will return the same word (good!), if the word doesnt exist, eg starboy, it will return something like starboard, which still works! better than nothing
                             http.get({
-                                host: "api.datamuse.com",
-                                path: "/words?rel_rhy=" + snippetLastWord
-                            }, function getRhyme(res) {
-                                var rhymesBody = "";
+                                host: wordHost,
+                                path: "/sug?s=" + snippetLastWord
+                            }, function getSuggested(res) {
+                                var sugsBody = "";
                                 res.on("data", function (d) {
-                                    rhymesBody += d;
+                                    sugsBody += d;
                                 });
 
                                 res.on("error", function (err) {
-                                    console.log("error getting charts!");
-                                    console.log(err);
+                                    console.error("error getting suggested words!");
                                     setTimeout(commence, redoWait);
                                     return;
                                 });
 
                                 res.on("end", function () {
-                                    var rhymesParsed;
-                                    console.log("done with rhyme request!");
+                                    var sugsParsed;
+                                    console.log("done with suggestion request!");
                                     try {
-                                        rhymesParsed = JSON.parse(rhymesBody);
+                                        sugsParsed = JSON.parse(sugsBody);
                                     }
                                     catch (err) {
-                                        console.error("couldn't parse rhyme");
+                                        console.error("couldn't parse suggestion");
                                         setTimeout(commence, redoWait);
                                         return;
                                     }
 
-                                    console.log(snippetParsed.message.body.snippet.snippet_body);
-                                    var rhyme = rhymesParsed[Object.keys(rhymesParsed).length * Math.random() << 0];
-                                    if(!rhyme) {
-                                        console.log("there wasn't any suitable rhyme for the snippet word: " + snippetLastWord);
+                                    var bestSug = sugsParsed[0];
+                                    if (!bestSug) {
+                                        console.log("no suggested words for: " + snippetLastWord + ", likely because it has non-alphabetic characters!");
                                         setTimeout(commence, redoWait);
                                         return;
                                     }
-                                    var rhymeWord = rhyme.word;
-                                    console.log(rhymeWord);
+                                    var bestSugWord = bestSug.word;
+
+                                    // Get a random rhyme pertaining to that suggested word
+                                    http.get({
+                                        host: wordHost,
+                                        path: "/words?rel_rhy=" + bestSugWord
+                                    }, function getRhyme(res) {
+                                        var rhymesBody = "";
+                                        res.on("data", function (d) {
+                                            rhymesBody += d;
+                                        });
+
+                                        res.on("error", function (err) {
+                                            console.error("error getting rhymes!");
+                                            setTimeout(commence, redoWait);
+                                            return;
+                                        });
+
+                                        res.on("end", function () {
+                                            var rhymesParsed;
+                                            console.log("done with rhyme request!");
+                                            try {
+                                                rhymesParsed = JSON.parse(rhymesBody);
+                                            }
+                                            catch (err) {
+                                                console.error("couldn't parse rhyme");
+                                                setTimeout(commence, redoWait);
+                                                return;
+                                            }
+
+                                            console.log(snippetParsed.message.body.snippet.snippet_body);
+                                            var rhyme = rhymesParsed[Object.keys(rhymesParsed).length * Math.random() << 0];
+                                            if (!rhyme) {
+                                                console.log("there wasn't any suitable rhyme for the snippet word: " + snippetLastWord);
+                                                setTimeout(commence, redoWait);
+                                                return;
+                                            }
+                                            var rhymeWord = rhyme.word;
+                                            console.log(rhymeWord);
+
+                                            // We're done with all the requests! time to post stuff
+                                            // regex accented characters http://stackoverflow.com/questions/20690499/concrete-javascript-regex-for-accented-characters-diacritics
+                                            var artistHash = "#" + track.artist_name.split(/[^a-z|A-Z|0-9|A-zÀ-ÿ]/).join("");
+                                            
+                                            var finalMessage = [
+                                                snippetString.substring(0, snippetLastSpaceIndex),
+                                                rhymeWord,
+                                                artistHash
+                                            ].join(" ");
+                                            console.log(finalMessage);
+                                            console.log(track.track_name);
+                                            if(finalMessage.length >= 140) {
+                                                console.log("Our final message was too long :( let's redo");
+                                                setTimeout(commence, redoWait);
+                                                return;
+                                            }
+
+                                            twit.post("statuses/update", {status: finalMessage}, function(err, data, response) {
+                                                console.log(data);
+                                            });
+                                        });
+                                    });
                                 });
                             });
                         });
