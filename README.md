@@ -11,6 +11,7 @@ Hey, I don't know how you ended up here lol, did you actually click the side lin
 - I find word suggestions if that word isn't a real word, using [Datamuse](http://www.datamuse.com/api/)
 - I find rhymes of that first suggestion, and pick a random one, with Datamuse
 - I post it using the 3rd party [Twitter API](https://github.com/ttezel/twit)
+- It also opens up a constant stream with Twitter, replying to any @mentions with a similarly-styled rhyme
 - Currently runs on my beloved Raspberry Pi 3 that had previously been horribly underutilised
 - Changes/updates are done/tested on my regular machine, then committed to this remote repo, then pulled back into the Pi's clone of it
 
@@ -22,8 +23,12 @@ Hey, I don't know how you ended up here lol, did you actually click the side lin
 ####If you _really_ want to run this steaming hot load:
 - Clone this into the folder you detest the most
 - cd into the main Lyrhymer/ folder and hit up `npm install` to retrieve dependencies
-- Get your own Musixmatch and Twitter API keys, and save them into a new superSecretConfidentualStuff.js file in the src folder (exports.mxmApiKey = ""; etc., you can check out the main lyrhymer.js to see what the exports were named as)
+- Get your own Musixmatch and Twitter API keys, and save them into a new superSecretConfidentualStuff.js file in the src folder (`exports.mxmApiKey = "..."` etc., you can check out the main lyrhymer.js to see what the exports were named as)
 - Back in the main root folder, `node src/lyrhymer.js` should start it up, if it doesn't work, you can heave a sigh of relief
+
+####Planned for the ~~distant~~ future:
+- ~~Stream to listen and reply (badly) to mentions~~
+- Some sorta incentive to follow it lol, maybe give a free taco or something.
 
 Spotted any strange issues that I _(the great idiot of modern times)_ did not catch? Open
 a new issue here! I really don't know why you'd want to do this, but also feel free to

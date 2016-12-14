@@ -6,3 +6,4 @@ I mean... I _could_ use & to run a background process of it, but _we're modern_
 it also now opens a stream and listens for mentions, and makes some cheesy rhymed reply
 I'm gonna work on putting "suggestion getting and subsequent random-rhyme getting" into
 a seperate function. I didn't really anticipate this to be written more than once lol
+alright, did the "mild refactoring", feels better lol
