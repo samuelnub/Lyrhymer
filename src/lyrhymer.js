@@ -7,7 +7,7 @@ var secrets = require("./superSecretConfidentialStuff");
 
     var curCount = 0;
     var interval = 1000 * 60 * 60 * 0.5;
-    var redoWait = 1000 * 20;
+    var redoWait = 1000 * 10;
     var tweetCharLimit = 140;
     var ourTwitHandle = "lyrhymer";
 
@@ -372,6 +372,7 @@ var secrets = require("./superSecretConfidentialStuff");
                                         ].join("");
                                         if (replyMessage.length >= tweetCharLimit) {
                                             console.log("Reply message was too long, oh well :(");
+                                            if (!once) { setTimeout(commence, redoWait); }
                                             return;
                                         }
 
