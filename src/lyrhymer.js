@@ -6,10 +6,17 @@ var secrets = require("./superSecretConfidentialStuff");
     console.log(secrets.info);
 
     var curCount = 0;
-    var interval = 1000 * 60* 60 * 0.5;
+    var interval = 1000 * 60 * 60 * 0.5;
     var redoWait = 1000 * 20;
     var tweetCharLimit = 140;
-    var date = new Date();
+    var ourTwitHandle = "lyrhymer";
+
+    var mxmHost = "api.musixmatch.com";
+    var mxmPathVer = "/ws/1.1/";
+
+    var wordHost = "api.datamuse.com";
+    var wordPathSug = "/sug?s=";
+    var wordPathRhy = "/words?rel_rhy=";
 
     var twit = new twitter({
         consumer_key: secrets.twitConKey,
@@ -19,12 +26,205 @@ var secrets = require("./superSecretConfidentialStuff");
         timeout_ms: 1000 * 60
     });
 
+    var getLastWord = function (message) {
+        // getting last word http://stackoverflow.com/questions/20883404/javascript-returning-the-last-word-in-a-string
+        var lastSpaceIndex = message.lastIndexOf(" ");
+        var lastWord = message.slice(lastSpaceIndex + 1);
+        var messageSansLastWord = message.substring(0, lastSpaceIndex).split(/[{}()"']/).join("");
+        return {
+            index: lastSpaceIndex,
+            word: lastWord,
+            others: messageSansLastWord
+        };
+    };
+
+    var getSugRhyme = function(word, callback) {}; // TODO: drying it up
+
+    (function initTwitStream(once) {
+        var twitStream = twit.stream("statuses/filter", { track: "@" + ourTwitHandle });
+
+        twitStream.on("connected", function(response) {
+            console.log("Successfully connected to the twitter stream!");
+            console.log("\n");
+            return;
+        });
+
+        twitStream.on("disconnect", function(message) {
+            console.log("Disconnected from the twitter stream! Likely because you're connecting elsewhere!");
+            console.log(message);
+            console.log("\n");
+            return;
+        });
+
+        twitStream.on("error", function(error) {
+            console.log("\nThe twitter stream encountered an error!");
+            console.log(error);
+            console.log("\n");
+            return;
+        });
+
+        twitStream.on("tweet", function (tweet) {
+            var theirHandle = tweet.user.screen_name;
+            if (theirHandle === ourTwitHandle) {
+                return;
+            }
+
+            // I _could_ break up the "commence" into better seperate; reusable functions, but I'm an extremely bad person, and to be honest, there's going to be so many configs that I might as well re-write them each time
+            // TODO: make it more dry.
+            try {
+                console.log("\nsomeone tweeted me! " + theirHandle);
+
+                var theirTweetIDstr = tweet.id_str;
+
+                // Be nice you cold; heartless being!
+                twit.post("favorites/create", { id: theirTweetIDstr }, function(err, data, response) {
+                    if(data.errors) {
+                        console.log("Error occurred while trying to favourite " + theirHandle + "'s tweet!");
+                        console.log(data.errors);
+                    }
+                    else {
+                        console.log("Successfully favourited " + theirHandle + "'s tweet!");
+                    }
+                });
+
+                if(tweet.in_reply_to_status_id) {
+                    console.log("It's a reply to me, so I shouldn't be continuing!");
+                    return;
+                }
+
+                var theirSentence = tweet.text.replace("@" + ourTwitHandle, "");
+
+                http.get({
+                    host: wordHost,
+                    path: wordPathSug + getLastWord(theirSentence).word.split(/[^a-z|A-Z|A-zÀ-ÿ]/).join("")
+                }, function getSuggested(res) {
+                    var sugsBody = "";
+                    res.on("data", function (d) {
+                        sugsBody += d;
+                    });
+
+                    res.on("error", function (err) {
+                        console.log("error getting suggested words for reply!");
+                        return;
+                    });
+
+                    res.on("end", function () {
+                        var sugsParsed;
+                        console.log("done with suggestions request for reply!");
+                        try {
+                            sugsParsed = JSON.parse(sugsBody);
+                        }
+                        catch (err) {
+                            console.log("couldn't parse suggestions for reply!");
+                            return;
+                        }
+
+                        var bestSug = sugsParsed[0];
+                        if (!bestSug) {
+                            console.log("Couldn't find a suggestion to rhyme with!");
+                            return;
+                        }
+                        var bestSugWord = bestSug.word;
+
+                        http.get({
+                            host: wordHost,
+                            path: wordPathRhy + bestSugWord.split(" ").join("%20")
+                        }, function getRhyme(res) {
+                            var rhymesBody = "";
+                            res.on("data", function (d) {
+                                rhymesBody += d;
+                            });
+
+                            res.on("error", function (err) {
+                                console.log("error getting rhyming words for reply!");
+                                return;
+                            });
+
+                            res.on("end", function () {
+                                var rhymesParsed;
+                                console.log("done with rhymes request for reply!");
+                                try {
+                                    rhymesParsed = JSON.parse(rhymesBody);
+                                }
+                                catch (err) {
+                                    console.log("couldn't parse rhymes for reply!");
+                                    return;
+                                }
+
+                                var rhyme = rhymesParsed[Object.keys(rhymesParsed).length * Math.random() << 0];
+                                if(!rhyme) {
+                                    console.log("Couldn't find any words that rhymed with: " + bestSugWord);
+                                    return;
+                                }
+                                var rhymeWord = rhyme.word;
+
+                                var finalMessage = [
+                                    "@", theirHandle,
+                                    "", // the sentence got rid of the handle, which left a trailing space already!
+                                    getLastWord(theirSentence).others,
+                                    " ",
+                                    rhymeWord
+                                ].join("");
+                                if(finalMessage.length >= tweetCharLimit) {
+                                    console.log("Initial reply message is too long! Let's try replying with just the rhymed word!");
+                                    finalMessage = [
+                                        "@", theirHandle,
+                                        "",
+                                        "Here is a wise rhyming word!",
+                                        " ",
+                                        rhymeWord
+                                    ].join("");
+                                    if(finalMessage.length >= tweetCharLimit) {
+                                        console.log("Still too long! Damn.");
+                                        finalMessage = [
+                                            "@", theirHandle,
+                                            "",
+                                            rhymeWord
+                                        ].join("");
+                                        if(finalMessage.length >= tweetCharLimit) {
+                                            console.log("Damnit, let's just apologise about not being able to fulfil this wonderful request of theirs :(");
+                                            finalMessage = [
+                                                "@", theirHandle,
+                                                "",
+                                                "hey man, your request was too long for me, sorry!"
+                                            ].join("");
+                                            if(finalMessage.length >= tweetCharLimit) {
+                                                console.log("Agh, screw it!");
+                                                return;
+                                            }
+                                        }
+                                    }
+                                }
+                                var suffixMessage = " " + "\ud83d\udc36\u2764"; // the beloved dog and heart emoji duo
+                                if((finalMessage + suffixMessage).length < tweetCharLimit) {
+                                    finalMessage += suffixMessage;
+                                }
+
+                                twit.post("statuses/update", { in_reply_to_status_id: theirTweetIDstr, status: finalMessage }, function(err, data, response) {
+                                    if(data.errors) {
+                                        console.log("whoops! got an error while trying to reply to someone's tweet!");
+                                        console.log(data.errors);
+                                        return;
+                                    }
+                                    console.log("Successfully replied to " + theirHandle + " with their tweet ID of " + tweet.id_str + "\n");
+                                    return;
+                                });
+                            });
+                        });
+                    });
+                });
+            }
+            catch (err) {
+                console.log("Caught a pesky exception while trying to respond to a tweet from the stream!");
+                console.log(err);
+                return;
+            }
+        });
+    })();
+
     // Prepare for callback hell!
     (function commence(once) {
         try {
-            var mxmHost = "api.musixmatch.com";
-            var mxmPathVer = "/ws/1.1/";
-
             // Get top charts
             http.get({
                 host: mxmHost,
@@ -105,16 +305,12 @@ var secrets = require("./superSecretConfidentialStuff");
 
                             // We've now got a snippet result, lets get the last word and dump that into a rhymer-finder
                             // getting last word http://stackoverflow.com/questions/20883404/javascript-returning-the-last-word-in-a-string
-                            var snippetLastSpaceIndex = snippetParsed.message.body.snippet.snippet_body.lastIndexOf(" ");
                             var snippetString = snippetParsed.message.body.snippet.snippet_body;
-                            var snippetLastWord = snippetString.slice(snippetLastSpaceIndex + 1);
-
-                            var wordHost = "api.datamuse.com";
 
                             // Get the suggested word of it^, if its a real word, the first index will return the same word (good!), if the word doesnt exist, eg starboy, it will return something like starboard, which still works! better than nothing
                             http.get({
                                 host: wordHost,
-                                path: "/sug?s=" + snippetLastWord.split(/[^a-z|A-Z|A-zÀ-ÿ]/).join("")
+                                path: wordPathSug + getLastWord(snippetString).word.split(/[^a-z|A-Z|A-zÀ-ÿ]/).join("")
                             }, function getSuggested(res) {
                                 var sugsBody = "";
                                 res.on("data", function (d) {
@@ -141,7 +337,7 @@ var secrets = require("./superSecretConfidentialStuff");
 
                                     var bestSug = sugsParsed[0];
                                     if (!bestSug) {
-                                        console.log("no suggested words for: " + snippetLastWord);
+                                        console.log("no suggested words for: " + getLastWord(snippetString).word);
                                         if (!once) { setTimeout(commence, redoWait); }
                                         return;
                                     }
@@ -150,7 +346,7 @@ var secrets = require("./superSecretConfidentialStuff");
                                     // Get a random rhyme pertaining to that suggested word
                                     http.get({
                                         host: wordHost,
-                                        path: "/words?rel_rhy=" + bestSugWord.split(" ").join("%20")
+                                        path: wordPathRhy + bestSugWord.split(" ").join("%20")
                                     }, function getRhyme(res) {
                                         var rhymesBody = "";
                                         res.on("data", function (d) {
@@ -188,7 +384,7 @@ var secrets = require("./superSecretConfidentialStuff");
                                             var artistHash = "#" + track.artist_name.split(/[^a-z|A-Z|0-9|A-zÀ-ÿ]/).join("");
 
                                             var finalMessage = [
-                                                snippetString.substring(0, snippetLastSpaceIndex),
+                                                getLastWord(snippetString).others, // unclosed parentheses may be there
                                                 " ",
                                                 rhymeWord,
                                                 " ",
@@ -209,11 +405,10 @@ var secrets = require("./superSecretConfidentialStuff");
                                                     }
 
                                                     var thisStatusIDstr = data.id_str;
-                                                    var ourHandle = data.user.screen_name;
 
                                                     var replyMessage = [
                                                         "@",
-                                                        ourHandle,
+                                                        ourTwitHandle,
                                                         " ",
                                                         "Original line: \"",
                                                         snippetString,
@@ -234,7 +429,7 @@ var secrets = require("./superSecretConfidentialStuff");
                                                             if (!once) { setTimeout(commence, redoWait); }
                                                             return;
                                                         }
-                                                        console.log("Made Tweet number " + ++curCount + " this run!\n" + "Time of completion: " + date.getFullYear() + "-" + (date.getMonth()+1) + "-" + date.getDate() + "T" + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds() + "Z\n");
+                                                        console.log("Made Tweet number " + ++curCount + " this run!\n");
                                                         if (!once) { setTimeout(commence, interval); }
                                                         return;
                                                     });
