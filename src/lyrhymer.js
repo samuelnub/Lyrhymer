@@ -20,8 +20,7 @@ var secrets = require("./superSecretConfidentialStuff");
     });
 
     // Prepare for callback hell!
-    commence(false);
-    function commence(once) {
+    (function commence(once) {
         try {
             var mxmHost = "api.musixmatch.com";
             var mxmPathVer = "/ws/1.1/";
@@ -254,6 +253,7 @@ var secrets = require("./superSecretConfidentialStuff");
             console.log("Caught a pesky exception:");
             console.log(err);
             if (!once) { setTimeout(commence, redoWait); }
+            return;
         }
-    }
+    })();
 })();

@@ -1,0 +1,26 @@
+{
+  "name": "lyrhymer",
+  "version": "0.1.0",
+  "description": "horrible twitter rhyming bot",
+  "main": "src/lyrhymer.js",
+  "dependencies": {
+    "twit": "^2.2.5"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "node src/lyrhymer.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "\u0016https://github.com/samuelnub/Lyrhymer.git"
+  },
+  "keywords": [
+    "lyrhymer",
+    "lyrics",
+    "rhymer",
+    "bot",
+    "twitter"
+  ],
+  "author": "Sam Nub",
+  "license": "MIT"
+}

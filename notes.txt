@@ -1,0 +1,5 @@
+14 Dec 2016
+http://raspberrypi.stackexchange.com/questions/27333/problems-with-installing-node-js-npm-package
+This fixed my npm issues with raspbian
+I'm probably gonna run this with forever, It's globally installed with npm install forever -g 
+I mean... I _could_ use & to run a background process of it, but _we're modern_
