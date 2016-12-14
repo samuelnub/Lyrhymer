@@ -9,6 +9,7 @@ var secrets = require("./superSecretConfidentialStuff");
     var interval = 1000 * 60* 60 * 0.5;
     var redoWait = 1000 * 20;
     var tweetCharLimit = 140;
+    var date = new Date();
 
     var twit = new twitter({
         consumer_key: secrets.twitConKey,
@@ -234,7 +235,7 @@ var secrets = require("./superSecretConfidentialStuff");
                                                             if (!once) { setTimeout(commence, redoWait); }
                                                             return;
                                                         }
-                                                        console.log("Made Tweet number " + ++curCount + " this run!\n");
+                                                        console.log("Made Tweet number " + ++curCount + " this run!\n" + "Time of completion: " + date.getFullYear() + "-" + (date.getMonth()+1) + "-" + date.getDate() + "T" + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds() + "Z\n");
                                                         if (!once) { setTimeout(commence, interval); }
                                                         return;
                                                     });

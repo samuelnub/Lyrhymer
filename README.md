@@ -3,8 +3,7 @@
 Hey, I don't know how you ended up here lol, did you actually click the side link on that
 [twitter profile?](https://twitter.com/lyrhymer)
 
-Here's the general process:
-
+####Here's the general process:
 - I get the current top charts off [Musixmatch's API](https://developer.musixmatch.com/documentation)
 - I select a random song from the top charts
 - I get the "snippet" or best lyrical summary of the song (which; so far, is just the most prominent line)
@@ -12,7 +11,13 @@ Here's the general process:
 - I find word suggestions if that word isn't a real word, using [Datamuse's API](http://www.datamuse.com/api/)
 - I find rhymes of that first suggestion, and pick a random one, with that aforementioned API
 - I post it using the 3rd party [Twitter API](https://github.com/ttezel/twit)
-- It currently runs on my desktop, but I'll be moving it over to my oh-so beloved Raspberry Pi 3 in the near future
+- Currently runs on my beloved Raspberry Pi 3 that had previously been horribly underutilised
+- Changes/updates are done/tested on my regular machine, then committed to this remote repo, then pulled back into the Pi's clone of it
+
+####Stuff required that's not in this repo:
+- Node modules needed: (at the root of Lyrhymer/)
+  - [Twit](https://github.com/ttezel/twit)
+- superSecretConfidentialStuff.js, in the src folder, which has all the public & private keys for the Musixmatch and Twitter APIs
 
 Spotted any strange issues that I _(the great idiot of modern times)_ did not catch? Open
 a new issue here! I really don't know why you'd want to do this, but also feel free to
