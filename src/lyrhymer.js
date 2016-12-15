@@ -6,7 +6,7 @@ var secrets = require("./superSecretConfidentialStuff");
     console.log(secrets.info);
 
     var curCount = 0;
-    var interval = 1000 * 60 * 60 * 0.5;
+    var interval = 1000 * 60 * 60 * 1;
     var redoWait = 1000 * 10;
     var tweetCharLimit = 140;
     var ourTwitHandle = "lyrhymer";
@@ -23,7 +23,7 @@ var secrets = require("./superSecretConfidentialStuff");
         // getting last word http://stackoverflow.com/questions/20883404/javascript-returning-the-last-word-in-a-string
         var lastSpaceIndex = message.lastIndexOf(" ");
         var lastWord = message.slice(lastSpaceIndex + 1);
-        var messageSansLastWord = message.substring(0, lastSpaceIndex).split(/[{}()"']/).join("");
+        var messageSansLastWord = message.substring(0, lastSpaceIndex).split(/[{}()<>"\[\]]/).join("");
         return {
             index: lastSpaceIndex,
             word: lastWord,
